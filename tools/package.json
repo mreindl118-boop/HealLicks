@@ -1,0 +1,22 @@
+{
+  "name": "@stadium-deck/tools",
+  "version": "0.1.0",
+  "description": "CLI harness and the Guided Capture Wizard. Experimental protocol messages live here and never in the app UI.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --force",
+    "capture": "tsx src/capture/index.ts",
+    "cli": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@stadium-deck/bridge": "*",
+    "@stadium-deck/protocol": "*",
+    "bonjour-service": "^1.2.1",
+    "picocolors": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0"
+  }
+}

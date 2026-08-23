@@ -1,0 +1,149 @@
+/* Stage-dark theme + iOS Safari hardening (Phase 0). */
+
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --text: #e6edf3;
+  --dim: #8b949e;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --bad: #f85149;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  /* Controls must not select text or trigger double-tap zoom. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+#root,
+.shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell {
+  /* Respect the iPad notch/home-indicator in standalone mode. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid #21262d;
+}
+
+.statusbar h1 {
+  font-size: 18px;
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.status-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pill-ok {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--ok);
+}
+.pill-warn {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--warn);
+}
+.pill-bad {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--bad);
+}
+
+.readonly-toggle {
+  /* 44pt minimum touch target. */
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.readonly-toggle.on {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.readonly-toggle.off {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.readonly-toggle:disabled {
+  opacity: 0.4;
+}
+
+.content {
+  flex: 1;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+
+.card {
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1px solid #21262d;
+  border-radius: 14px;
+  padding: 20px 24px;
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+.card code {
+  background: #21262d;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.warning {
+  color: var(--warn);
+}
+
+.dim {
+  color: var(--dim);
+  font-size: 14px;
+}

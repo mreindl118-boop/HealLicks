@@ -1,0 +1,22 @@
+{
+  "name": "@stadium-deck/mock",
+  "version": "0.1.0",
+  "description": "Mock Helix Stadium: speaks the same ZMTP+OSC TCP protocol from synthesized fixtures so the whole stack runs with no hardware.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --force",
+    "start": "tsx src/index.ts",
+    "start:dist": "node dist/index.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@stadium-deck/protocol": "*",
+    "bonjour-service": "^1.2.1"
+  },
+  "devDependencies": {
+    "@stadium-deck/bridge": "*",
+    "@types/node": "^22.5.0"
+  }
+}

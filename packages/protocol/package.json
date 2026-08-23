@@ -1,0 +1,26 @@
+{
+  "name": "@stadium-deck/protocol",
+  "version": "0.1.0",
+  "description": "Helix Stadium editor protocol: ZMTP 3.0 framing, OSC codec, typed messages, session state machine. Runs in Node and the browser (no socket code here).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --force",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@msgpack/msgpack": "^3.0.0"
+  }
+}

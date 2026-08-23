@@ -1,0 +1,42 @@
+{
+  "name": "@stadium-deck/bridge",
+  "version": "0.1.0",
+  "description": "LAN bridge daemon: discovers the Helix Stadium, maintains the TCP link, serves the PWA and a same-origin WebSocket relay.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./stadium-client": {
+      "types": "./dist/stadium-client.d.ts",
+      "default": "./dist/stadium-client.js"
+    },
+    "./stadium-link": {
+      "types": "./dist/stadium-link.d.ts",
+      "default": "./dist/stadium-link.js"
+    },
+    "./discovery": {
+      "types": "./dist/discovery.d.ts",
+      "default": "./dist/discovery.js"
+    },
+    "./traffic-log": {
+      "types": "./dist/traffic-log.d.ts",
+      "default": "./dist/traffic-log.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --force",
+    "start": "tsx src/index.ts",
+    "start:dist": "node dist/index.js"
+  },
+  "dependencies": {
+    "@stadium-deck/protocol": "*",
+    "bonjour-service": "^1.2.1",
+    "qrcode-terminal": "^0.12.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@types/ws": "^8.5.12"
+  }
+}

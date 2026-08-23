@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.stadiumdeck.bridge</string>
+
+  <!-- __NODE__ and __REPO__ are filled in by deploy/install-macos.sh -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>__REPO__/bridge/dist/index.js</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO__</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>Crashed</key>
+    <true/>
+    <key>NetworkState</key>
+    <true/>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__REPO__/bridge/logs/launchd-stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO__/bridge/logs/launchd-stderr.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>BRIDGE_PORT</key>
+    <string>8484</string>
+  </dict>
+</dict>
+</plist>

@@ -1,0 +1,33 @@
+{
+  "name": "stadium-deck",
+  "private": true,
+  "version": "0.1.0",
+  "description": "iPad PWA + LAN bridge for controlling and editing a Line 6 Helix Stadium XL",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/protocol",
+    "bridge",
+    "app",
+    "mock",
+    "tools"
+  ],
+  "scripts": {
+    "build": "tsc -b && npm run build -w app",
+    "typecheck": "tsc -b --force && npm run typecheck -w app",
+    "test": "npm run test -w @stadium-deck/protocol && npm run test -w @stadium-deck/mock",
+    "bridge": "npm run start -w @stadium-deck/bridge --",
+    "mock": "npm run start -w @stadium-deck/mock --",
+    "capture": "npm run capture -w @stadium-deck/tools --",
+    "cli": "npm run cli -w @stadium-deck/tools --",
+    "dev:app": "npm run dev -w @stadium-deck/app",
+    "clean": "rm -rf packages/protocol/dist bridge/dist mock/dist tools/dist app/dist *.tsbuildinfo packages/protocol/*.tsbuildinfo bridge/*.tsbuildinfo mock/*.tsbuildinfo tools/*.tsbuildinfo"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "tsx": "^4.19.0",
+    "vitest": "^2.1.0"
+  }
+}

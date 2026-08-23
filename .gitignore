@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.tsbuildinfo
+*.log
+.DS_Store
+
+# Bridge runtime output
+bridge/logs/
+bridge/snapshots/
+
+# Capture sessions (raw pcaps can be large; manifests are small but session-local)
+captures/
+
+# Vite
+app/.vite/

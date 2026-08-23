@@ -1,0 +1,18 @@
+# Stadium Deck bridge — systemd unit for Raspberry Pi / Linux.
+# Installed by deploy/install-pi.sh (which substitutes __NODE__ and __REPO__).
+[Unit]
+Description=Stadium Deck bridge (Helix Stadium XL LAN bridge + PWA server)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=__NODE__ __REPO__/bridge/dist/index.js
+WorkingDirectory=__REPO__
+Restart=on-failure
+RestartSec=3
+Environment=BRIDGE_PORT=8484
+# mDNS browsing needs avahi-daemon running on the Pi.
+
+[Install]
+WantedBy=multi-user.target
