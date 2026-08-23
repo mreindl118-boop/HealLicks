@@ -1,9 +1,10 @@
 /**
  * Safety rail: before any preset-modifying operation, snapshot the affected
  * state to the bridge's disk (timestamped JSON, restorable by replaying the
- * captured content data). Throttled so knob streams don't write a file per
- * message — one snapshot per preset per throttle window is enough to restore
- * "what it looked like before I started tweaking".
+ * captured content data). Throttled per preset — one snapshot per preset per
+ * throttle window is enough to restore "what it looked like before I started
+ * tweaking" — with a short global floor so knob streams don't spam the device
+ * with active-preset queries.
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -25,7 +26,9 @@ function blobArg(args: readonly unknown[], index: number): Uint8Array | null {
 }
 
 export class PresetSnapshotter {
-  private lastSnapshotAt = 0;
+  /** Per-preset last-snapshot times; "global" covers cid-unreadable cases. */
+  private lastSnapshotAt = new Map<number | "global", number>();
+  private lastQueryAt = 0;
   private snapshotting = false;
   snapshotCount = 0;
 
@@ -33,6 +36,8 @@ export class PresetSnapshotter {
     readonly directory: string,
     readonly throttleMs = 10_000,
     private readonly log?: (message: string) => void,
+    /** Minimum gap between active-preset queries (knob-stream protection). */
+    readonly queryFloorMs = 2_000,
   ) {}
 
   /**
@@ -43,9 +48,12 @@ export class PresetSnapshotter {
    */
   async snapshotBeforeMutation(link: StadiumLink, triggerAddress: string): Promise<void> {
     const now = Date.now();
-    if (this.snapshotting || now - this.lastSnapshotAt < this.throttleMs) return;
+    if (this.snapshotting || now - this.lastQueryAt < this.queryFloorMs) return;
     this.snapshotting = true;
+    this.lastQueryAt = now;
     try {
+      // Identify the affected preset FIRST so the throttle is per-preset:
+      // the first edit of a different preset must still get its snapshot.
       const presetIdResult = await link.request((cmdId) =>
         buildPropertyValueGet(cmdId, PROPERTY_KEYS.activePresetId),
       );
@@ -54,6 +62,9 @@ export class PresetSnapshotter {
         const blob = blobArg(presetIdResult.reply.message.args, 2);
         activePresetId = blob ? decodePropertyBlob(blob) : null;
       }
+      const throttleKey: number | "global" = extractPresetCid(activePresetId) ?? "global";
+      const last = this.lastSnapshotAt.get(throttleKey) ?? 0;
+      if (now - last < this.throttleMs) return;
 
       const editBufferResult = await link.request(buildEditBufferStateGet);
       let editBuffer: BlobValue = null;
@@ -63,7 +74,7 @@ export class PresetSnapshotter {
       }
 
       let contentData: string | null = null;
-      const presetCid = extractPresetCid(activePresetId);
+      const presetCid = throttleKey === "global" ? null : throttleKey;
       if (presetCid !== null) {
         const dataResult = await link.request((cmdId) => buildGetContentData(cmdId, presetCid));
         if (dataResult.ok && dataResult.reply?.kind === "reply") {
@@ -96,7 +107,7 @@ export class PresetSnapshotter {
           2,
         ),
       );
-      this.lastSnapshotAt = now;
+      this.lastSnapshotAt.set(throttleKey, now);
       this.snapshotCount += 1;
       this.log?.(`snapshot: wrote ${path} (before ${triggerAddress})`);
     } catch (error) {

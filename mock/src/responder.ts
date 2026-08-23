@@ -397,6 +397,87 @@ export class Responder {
       case REQ.SetContentPath:
         return { replies: [status(cmdId, 0, 1)], pushes: [] };
 
+      // Catalogued write ops the mock accepts without modelling their state.
+      case REQ.HarnessParamValueSet:
+      case REQ.SplitDestinationSet:
+      case REQ.JoinOriginSet:
+      case REQ.SetContentInfo:
+      case REQ.DeleteContentInfo:
+        return { replies: [status(cmdId, 0, 1)], pushes: [] };
+
+      case REQ.AddContentsToContainer:
+      case REQ.ReorderContainerContent:
+      case REQ.RemoveContent:
+        return { replies: [status(cmdId, 0, 1)], pushes: [] };
+
+      case REQ.GetAllContentInfo: {
+        const contentType = int(message.args[1]) ?? 0;
+        return {
+          replies: [
+            { address: "/GetAllContentInfo", typeTags: "iibi", args: [cmdId, contentType, encodeMsgpack([]), 0] },
+          ],
+          pushes: [],
+        };
+      }
+
+      case REQ.GetContentInfo: {
+        const contentType = int(message.args[1]) ?? 0;
+        const name = typeof message.args[2] === "string" ? message.args[2] : "";
+        return {
+          replies: [{ address: "/GetContentInfo", typeTags: "iisi", args: [cmdId, contentType, name, 0] }],
+          pushes: [],
+        };
+      }
+
+      case REQ.FindContentMatches: {
+        const contentType = int(message.args[1]) ?? 0;
+        const query = typeof message.args[2] === "string" ? message.args[2] : "";
+        return {
+          replies: [
+            {
+              address: "/FindContentInfo",
+              typeTags: "iissbi",
+              args: [cmdId, contentType, query, "", encodeMsgpack([]), 0],
+            },
+          ],
+          pushes: [],
+        };
+      }
+
+      case REQ.PropertyDefWithKeyGet: {
+        const key = typeof message.args[1] === "string" ? message.args[1] : "";
+        return {
+          replies: [
+            {
+              address: "/keyPropertyDefinition",
+              typeTags: "isb",
+              args: [cmdId, key, encodeMsgpack({ key, mock: true })],
+            },
+          ],
+          pushes: [],
+        };
+      }
+
+      case REQ.MatchingPropertyDefinitionsGet:
+        return {
+          replies: [
+            {
+              address: "/getMatchingPropertyDefinitions",
+              typeTags: "ib",
+              args: [cmdId, encodeMsgpack({ defs: [] })],
+            },
+          ],
+          pushes: [],
+        };
+
+      case REQ.MatchingPropertyValuesGet:
+        return {
+          replies: [
+            { address: "/getMatchingPropertyValues", typeTags: "ib", args: [cmdId, encodeMsgpack({ vals: [] })] },
+          ],
+          pushes: [],
+        };
+
       default:
         return {
           replies: [error(cmdId, `Msg dispatch failed: ${message.address} is NOT known!!!`)],

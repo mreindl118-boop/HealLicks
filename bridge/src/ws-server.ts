@@ -41,7 +41,12 @@ const READ_ONLY_SAFE = new Set<string>([
   REQ.FindContentMatches,
 ]);
 
-/** Requests that modify preset state and deserve a pre-mutation snapshot. */
+/**
+ * Requests that modify (or clobber) preset state and deserve a pre-mutation
+ * snapshot. Preset loads and snapshot switches are included because they
+ * discard unsaved edit-buffer changes; PropertyValueSet covers notes,
+ * scribble strips, and globals.
+ */
 const PRESET_MODIFYING = new Set<string>([
   REQ.ParamValueSet,
   REQ.HarnessParamValueSet,
@@ -54,10 +59,16 @@ const PRESET_MODIFYING = new Set<string>([
   REQ.SetSnapshotName,
   REQ.CopySnapshot,
   REQ.SnapshotColorSet,
+  REQ.ActivateSnapshot,
   REQ.SavePresetWithCID,
+  REQ.LoadPresetWithCID,
+  REQ.LoadPresetAtContainerPosition,
+  REQ.PropertyValueSet,
   REQ.SetContentAttrs,
   REQ.SetContentData,
   REQ.SetContentPath,
+  REQ.SetContentInfo,
+  REQ.DeleteContentInfo,
   REQ.AddContentsToContainer,
   REQ.ReorderContainerContent,
   REQ.RemoveContent,
@@ -155,7 +166,16 @@ export class WsRelay {
     });
 
     socket.on("message", (data) => {
-      void this.onMessage(socket, typeof data === "string" ? data : data.toString());
+      // Error boundary: a throw anywhere in the request pipeline (bad blob
+      // base64, tag/arg mismatch reaching encodeOsc, ...) must never become
+      // an unhandled rejection that kills the daemon.
+      this.onMessage(socket, typeof data === "string" ? data : data.toString()).catch((error) => {
+        this.options.log?.(`ws: request failed: ${error instanceof Error ? error.message : error}`);
+        this.send(socket, {
+          type: "bridgeError",
+          detail: `invalid request: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      });
     });
     socket.on("close", () => {
       this.options.log?.(`ws: client disconnected, total ${this.clientCount}`);

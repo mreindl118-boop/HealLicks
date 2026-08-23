@@ -58,6 +58,7 @@ export class TcpdumpBackend implements CaptureBackend {
   readonly kind = "sniff" as const;
   readonly unit = "packets" as const;
   private child: ChildProcess | null = null;
+  private childExited: Promise<void> | null = null;
   private currentFile: string | null = null;
   private stderrBuf = "";
 
@@ -104,6 +105,10 @@ export class TcpdumpBackend implements CaptureBackend {
     this.child.stderr?.on("data", (chunk: Buffer) => {
       this.stderrBuf += chunk.toString();
     });
+    // Register the exit promise NOW: if tcpdump dies mid-segment (disk full,
+    // interface gone), a listener attached later would wait forever.
+    const child = this.child;
+    this.childExited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
     // Give tcpdump a beat to attach before the user acts.
     await new Promise((resolve) => setTimeout(resolve, 700));
     if (this.child.exitCode !== null) {
@@ -115,15 +120,18 @@ export class TcpdumpBackend implements CaptureBackend {
 
   async endSegment(): Promise<SegmentStats> {
     const child = this.child;
+    const exited = this.childExited;
     const file = this.currentFile;
     this.child = null;
+    this.childExited = null;
     this.currentFile = null;
-    if (!child || !file) throw new Error("no open segment");
+    if (!child || !exited || !file) throw new Error("no open segment");
 
-    const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
-    child.kill("SIGINT");
-    await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 4000))]);
-    if (child.exitCode === null) child.kill("SIGKILL");
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGINT");
+      await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 4000))]);
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+    }
     await exited;
 
     // tcpdump reports "N packets captured" on stderr at shutdown.
@@ -217,10 +225,12 @@ export class ObserveBackend implements CaptureBackend {
 
   private onTraffic(record: TrafficRecord): void {
     if (record.direction !== "in") return;
-    if (!this.stream) return;
+    // Counters run whether or not a segment is open — the settle-gap quiet
+    // check between segments depends on liveCount() still moving.
     this.total += 1;
     if (record.address !== "/heartbeat") this.nonHeartbeat += 1;
     this.counts.set(record.address, (this.counts.get(record.address) ?? 0) + 1);
+    if (!this.stream) return;
     const entry = {
       iso: new Date(record.at).toISOString(),
       socket: record.socket,

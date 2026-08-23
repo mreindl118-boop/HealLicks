@@ -51,12 +51,16 @@ export function decodePcap(
 ): DecodedPacketMessage[] {
   const buf = readFileSync(filePath);
   if (buf.length < 24) throw new Error("file too short to be a pcap");
-  const magic = buf.readUInt32LE(0);
+  const magicLE = buf.readUInt32LE(0);
+  const magicBE = buf.readUInt32BE(0);
   let littleEndian: boolean;
-  if (magic === 0xa1b2c3d4 || magic === 0xa1b23c4d) littleEndian = true;
-  else if (buf.readUInt32BE(0) === 0xa1b2c3d4 || buf.readUInt32BE(0) === 0xa1b23c4d) littleEndian = false;
-  else if (magic === 0x0a0d0d0a) throw new Error("pcapng not supported — capture with tcpdump -w (classic pcap)");
+  if (magicLE === 0xa1b2c3d4 || magicLE === 0xa1b23c4d) littleEndian = true;
+  else if (magicBE === 0xa1b2c3d4 || magicBE === 0xa1b23c4d) littleEndian = false;
+  else if (magicLE === 0x0a0d0d0a) throw new Error("pcapng not supported — capture with tcpdump -w (classic pcap)");
   else throw new Error("not a pcap file (bad magic)");
+  // 0xa1b23c4d marks nanosecond-resolution timestamps in either byte order.
+  const nanoseconds = magicLE === 0xa1b23c4d || magicBE === 0xa1b23c4d;
+  const tsDivisor = nanoseconds ? 1e9 : 1e6;
 
   const readU32 = (offset: number): number => (littleEndian ? buf.readUInt32LE(offset) : buf.readUInt32BE(offset));
   const linkType = readU32(20);
@@ -120,7 +124,7 @@ export function decodePcap(
       flows.set(key, flow);
     }
     flow.segments.push({
-      timestamp: tsSec + tsFrac / (magic === 0xa1b23c4d ? 1e9 : 1e6),
+      timestamp: tsSec + tsFrac / tsDivisor,
       seq,
       payload: new Uint8Array(payload),
     });
@@ -134,7 +138,11 @@ export function decodePcap(
       ? "device->editor"
       : "editor->device";
 
-    flow.segments.sort((a, b) => a.seq - b.seq || a.timestamp - b.timestamp);
+    // Sort by sequence RELATIVE to the earliest-seen segment (int32 delta),
+    // so flows whose sequence space crosses 2^32 still order correctly.
+    const base = flow.segments.reduce((min, s) => (s.timestamp < min.timestamp ? s : min), flow.segments[0]!).seq;
+    const rel = (seq: number): number => (seq - base) | 0;
+    flow.segments.sort((a, b) => rel(a.seq) - rel(b.seq) || a.timestamp - b.timestamp);
     const parser = new ZmtpFrameParser();
     let expectedSeq: number | null = null;
     let greetingSkipped = 0;

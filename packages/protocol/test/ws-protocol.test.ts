@@ -18,17 +18,41 @@ describe("JSON value round-trips", () => {
 });
 
 describe("parseAppToBridge validation", () => {
-  it("accepts a well-formed request", () => {
+  it("accepts a well-formed request (args exclude the cmdId)", () => {
     const parsed = parseAppToBridge(
       JSON.stringify({
         type: "request",
         requestId: "r1",
         address: "/SnapshotCountGet",
         typeTags: "i",
-        args: [1],
+        args: [],
       }),
     );
     expect(parsed).toMatchObject({ type: "request", requestId: "r1" });
+  });
+
+  it("rejects malformed arg contents that would throw deep in the pipeline", () => {
+    const base = { type: "request", requestId: "r", address: "/PropertyValueGet" };
+    // non-numeric $i64 (would throw in BigInt())
+    expect(parseAppToBridge(JSON.stringify({ ...base, typeTags: "is", args: [{ $i64: "x" }] }))).toBeNull();
+    // invalid base64 $blob (would throw in atob())
+    expect(parseAppToBridge(JSON.stringify({ ...base, typeTags: "ib", args: [{ $blob: "@@@" }] }))).toBeNull();
+    // arity mismatch (would throw in encodeOsc)
+    expect(parseAppToBridge(JSON.stringify({ ...base, typeTags: "is", args: [] }))).toBeNull();
+    expect(parseAppToBridge(JSON.stringify({ ...base, typeTags: "i", args: ["extra"] }))).toBeNull();
+    // unknown tag characters
+    expect(parseAppToBridge(JSON.stringify({ ...base, typeTags: "iq", args: [1] }))).toBeNull();
+    // typeTags must start with the cmdId's i
+    expect(parseAppToBridge(JSON.stringify({ ...base, typeTags: "si", args: ["x"] }))).toBeNull();
+    // arbitrary objects are not valid values
+    expect(parseAppToBridge(JSON.stringify({ ...base, typeTags: "is", args: [{ evil: 1 }] }))).toBeNull();
+    // valid shapes still pass
+    expect(
+      parseAppToBridge(JSON.stringify({ ...base, typeTags: "is", args: ["server.active.preset.id"] })),
+    ).not.toBeNull();
+    expect(
+      parseAppToBridge(JSON.stringify({ ...base, typeTags: "iihb", args: [1, { $i64: "-9" }, { $blob: "AQI=" }] })),
+    ).not.toBeNull();
   });
 
   it("rejects malformed JSON, unknown types, and bad addresses", () => {

@@ -135,6 +135,24 @@ export function fromJsonValues(values: readonly JsonOscValue[]): OscValue[] {
   return values.map(fromJsonValue);
 }
 
+const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
+const TYPE_TAGS_RE = /^i[ihfsbTF]*$/;
+
+function isValidJsonOscValue(value: unknown): value is JsonOscValue {
+  if (value === null || typeof value === "number" || typeof value === "string" || typeof value === "boolean") {
+    return true;
+  }
+  if (typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  if ("$blob" in record) {
+    return typeof record["$blob"] === "string" && BASE64_RE.test(record["$blob"]);
+  }
+  if ("$i64" in record) {
+    return typeof record["$i64"] === "string" && /^-?\d+$/.test(record["$i64"]);
+  }
+  return false;
+}
+
 export function parseAppToBridge(raw: string): AppToBridge | null {
   let parsed: unknown;
   try {
@@ -153,7 +171,14 @@ export function parseAppToBridge(raw: string): AppToBridge | null {
         typeof msg.address !== "string" ||
         !msg.address.startsWith("/") ||
         typeof msg.typeTags !== "string" ||
-        !Array.isArray(msg.args)
+        // Leading `i` is the bridge-allocated cmdId; only known tags allowed.
+        !TYPE_TAGS_RE.test(msg.typeTags) ||
+        !Array.isArray(msg.args) ||
+        // Every tag consumes one arg slot; args exclude the cmdId.
+        msg.args.length !== msg.typeTags.length - 1 ||
+        !msg.args.every(isValidJsonOscValue) ||
+        (msg.expectAddress !== undefined && typeof msg.expectAddress !== "string") ||
+        (msg.timeoutMs !== undefined && typeof msg.timeoutMs !== "number")
       ) {
         return null;
       }

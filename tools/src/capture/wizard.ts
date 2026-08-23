@@ -27,7 +27,7 @@ export interface WizardOptions {
   invariantCheck: () => Promise<{ ok: boolean; problem?: string; fix?: string[] }>;
 }
 
-type StepOutcome = "captured" | "skipped" | "quit";
+type StepOutcome = "captured" | "skipped" | "quit" | "redoPrevious";
 
 export class CaptureWizard {
   private segmentIndex = 0;
@@ -51,6 +51,15 @@ export class CaptureWizard {
       if (outcome === "quit") {
         this.options.manifest.addNote("Session ended early by user.");
         return "aborted";
+      }
+      if (outcome === "redoPrevious") {
+        if (i === 0) {
+          console.log(style.warn("  This is the first step — nothing to redo."));
+        } else {
+          this.options.manifest.addNote(`User chose to redo step ${steps[i - 1]!.id} from the following step's prompt.`);
+        }
+        i = Math.max(-1, i - 2); // loop's i++ lands on the previous step (or repeats step 0)
+        continue;
       }
       if (i < steps.length - 1) {
         const command = await this.settleGap();
@@ -103,6 +112,7 @@ export class CaptureWizard {
           : style.key("  Press Enter when you are READY to do this (capture starts first)..."),
       );
       if (preCommand === "q") return "quit";
+      if (preCommand === "r") return "redoPrevious";
       if (preCommand === "s") {
         this.recordSegment(step, attempt, null, "skipped", null);
         console.log(style.warn("  Step skipped."));
@@ -149,7 +159,8 @@ export class CaptureWizard {
         console.log(style.dim("  The action may not have generated traffic, or it happened before/after the segment."));
         const retry = await yesNo("  Try the same step again?");
         if (retry) continue;
-        this.recordSegment(step, attempt, startedAt, "skipped", stats);
+        // The "failed" record above already covers this attempt's file;
+        // moving on without a duplicate entry keeps index<->file mapping 1:1.
         return "skipped";
       }
 

@@ -38,6 +38,21 @@ describe("property blobs", () => {
     expect(decoded["val_"]).toBe("hello\nworld");
   });
 
+  it("float-typed whole numbers encode as msgpack float64, byte-exact to the reference", () => {
+    // JS cannot distinguish 5.0 from 5; the reference (Python msgpack.packb)
+    // emits float64 (0xcb + 8 bytes BE) for type "f" — so must we.
+    const hex = (b: Uint8Array) => Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
+    const blob5 = buildPropertyBlob("k", 5, "f");
+    expect(hex(blob5)).toContain("cb4014000000000000"); // 5.0 as float64
+    const blob0 = buildPropertyBlob("k", 0, "f");
+    expect(hex(blob0)).toContain("cb0000000000000000"); // 0.0 as float64
+    const decoded = decodePropertyBlob(blob5) as Record<string, unknown>;
+    expect(decoded["val_"]).toBe(5);
+    // integer-typed values must stay msgpack ints (no cb marker for val_)
+    const intBlob = buildPropertyBlob("k", 5, "i");
+    expect(hex(intBlob)).not.toContain("cb4014000000000000");
+  });
+
   it("builds integer-typed properties (auto-cab toggle shape)", () => {
     const blob = buildPropertyBlob("global.modelselect.addcabblock", 1, "i");
     const decoded = decodePropertyBlob(blob) as Record<string, unknown>;

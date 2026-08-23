@@ -111,10 +111,16 @@ function encodeUint32Key(value: number): Uint8Array {
   return out;
 }
 
+/** Pre-encoded msgpack bytes, passed through encodeIntKeyedMap verbatim. */
+export class RawMsgpack {
+  constructor(readonly bytes: Uint8Array) {}
+}
+
 /**
  * Encode a msgpack map with integer keys. @msgpack/msgpack cannot encode JS
  * Maps (objects stringify their keys), so the map header and keys are written
- * by hand and the values delegated to the library.
+ * by hand and the values delegated to the library (or passed through when
+ * wrapped in RawMsgpack).
  */
 export function encodeIntKeyedMap(entries: ReadonlyArray<readonly [number, unknown]>): Uint8Array {
   if (entries.length > 15) {
@@ -122,7 +128,7 @@ export function encodeIntKeyedMap(entries: ReadonlyArray<readonly [number, unkno
   }
   const parts: Uint8Array[] = [new Uint8Array([0x80 | entries.length])];
   for (const [key, value] of entries) {
-    parts.push(encodeUint32Key(key), msgpackEncode(value));
+    parts.push(encodeUint32Key(key), value instanceof RawMsgpack ? value.bytes : msgpackEncode(value));
   }
   return concatBytes(parts);
 }
@@ -136,10 +142,17 @@ export function buildPropertyBlob(
   value: string | number | Uint8Array,
   valueType: PropertyValueType = "s",
 ): Uint8Array {
+  // JS cannot distinguish 5.0 from 5, so a whole-number float would encode as
+  // msgpack int by default; the device/reference always sees float64 for
+  // type "f", so force it (verified byte-identical to the Python reference).
+  const encodedValue =
+    valueType === "f" && typeof value === "number"
+      ? new RawMsgpack(msgpackEncode(value, { forceIntegerToFloat: true }))
+      : value;
   const packed = encodeIntKeyedMap([
     [fourccInt("key_"), key],
     [fourccInt("type"), valueType],
-    [fourccInt("val_"), value],
+    [fourccInt("val_"), encodedValue],
   ]);
   return concatBytes([new TextEncoder().encode(PROPERTY_BLOB_MAGIC), packed]);
 }

@@ -97,6 +97,10 @@ export class StadiumLink {
     const prevState = this.state;
     this.state = result.state;
     this.context = result.context;
+    if (result.state === "closed" && this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (prevState !== result.state) {
       this.log(`link: ${prevState} -> ${result.state}${"error" in event ? ` (${event.error})` : ""}`);
     }
@@ -127,7 +131,11 @@ export class StadiumLink {
       case "scheduleReconnect":
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
         this.log(`link: reconnecting in ${action.delayMs}ms (attempt ${action.attempt})`);
-        this.reconnectTimer = setTimeout(() => this.dispatch({ type: "backoffElapsed" }), action.delayMs);
+        this.reconnectTimer = setTimeout(() => {
+          this.reconnectTimer = null;
+          this.dispatch({ type: "backoffElapsed" });
+        }, action.delayMs);
+        this.reconnectTimer.unref?.();
         break;
       case "notifyOffline":
         this.lastReason = action.reason;

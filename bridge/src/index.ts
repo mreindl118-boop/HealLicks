@@ -28,6 +28,12 @@ const BRIDGE_VERSION = "0.1.0";
 
 const config = loadConfig();
 const log = (message: string): void => console.log(`[bridge] ${message}`);
+
+// Defense in depth: the WS relay has its own error boundary, but a stray
+// rejection elsewhere must degrade to a log line, not kill the daemon.
+process.on("unhandledRejection", (reason) => {
+  log(`UNHANDLED REJECTION (please report): ${reason instanceof Error ? (reason.stack ?? reason.message) : reason}`);
+});
 const verbose = (message: string): void => {
   if (config.verbose) log(message);
 };
